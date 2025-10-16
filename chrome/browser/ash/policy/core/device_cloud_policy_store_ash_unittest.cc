@@ -449,4 +449,130 @@ TEST_F(DeviceCloudPolicyStoreAshTest, StoreDeviceBlockDevmodeDisallowed) {
   EXPECT_EQ(store_->status(), CloudPolicyStore::STATUS_BAD_STATE);
 }
 
+// Tests for CheckDMToken security fix - prevents unauthorized unenrollment
+TEST_F(DeviceCloudPolicyStoreAshTest,
+       CheckDMTokenBlocksRecoveryWhenNotLocked) {
+  // Simulate a device that's not properly locked (possible tampering)
+  ResetToNonEnterprise();
+  
+  // Set up a local state with version info to trigger the check
+  TestingBrowserProcess::GetGlobal()->SetLocalState(local_state());
+  local_state()->SetString(prefs::kEnrollmentVersionOS, "122.0.0");
+  
+  // Clear the enrollment recovery flag first
+  local_state()->ClearPref(prefs::kEnrollmentRecoveryRequired);
+  
+  // Load the store - this should trigger CheckDMToken
+  store_->Load();
+  FlushDeviceSettings();
+  
+  // Verify that enrollment recovery was NOT triggered (device not locked)
+  EXPECT_FALSE(
+      local_state()->GetBoolean(prefs::kEnrollmentRecoveryRequired));
+  
+  TestingBrowserProcess::GetGlobal()->SetLocalState(nullptr);
+}
+
+TEST_F(DeviceCloudPolicyStoreAshTest,
+       CheckDMTokenBlocksRecoveryWhenNotCloudManaged) {
+  // Reset to consumer device (not cloud managed)
+  ResetToNonEnterprise();
+  
+  TestingBrowserProcess::GetGlobal()->SetLocalState(local_state());
+  local_state()->SetString(prefs::kEnrollmentVersionOS, "122.0.0");
+  local_state()->ClearPref(prefs::kEnrollmentRecoveryRequired);
+  
+  // Try to load - should not trigger recovery for non-managed device
+  store_->Load();
+  FlushDeviceSettings();
+  
+  // Enrollment recovery should NOT be triggered
+  EXPECT_FALSE(
+      local_state()->GetBoolean(prefs::kEnrollmentRecoveryRequired));
+  
+  TestingBrowserProcess::GetGlobal()->SetLocalState(nullptr);
+}
+
+TEST_F(DeviceCloudPolicyStoreAshTest,
+       CheckDMTokenAllowsRecoveryForLegitimateCase) {
+  // Set up a properly enrolled device with missing DM token
+  // (legitimate recovery scenario)
+  TestingBrowserProcess::GetGlobal()->SetLocalState(local_state());
+  local_state()->SetString(prefs::kEnrollmentVersionOS, "122.0.0");
+  local_state()->ClearPref(prefs::kEnrollmentRecoveryRequired);
+  
+  // Set up the device as enrolled but remove the DM token from policy
+  device_policy_->policy_data().clear_request_token();
+  device_policy_->Build();
+  
+  // Load the policy - this simulates legitimate missing DM token
+  store_->Load();
+  FlushDeviceSettings();
+  
+  // In this legitimate case where:
+  // - Device is locked
+  // - Device is cloud managed  
+  // - Has valid domain
+  // - Has device ID
+  // Enrollment recovery SHOULD be triggered
+  EXPECT_TRUE(local_state()->GetBoolean(prefs::kEnrollmentRecoveryRequired));
+  
+  TestingBrowserProcess::GetGlobal()->SetLocalState(nullptr);
+}
+
+TEST_F(DeviceCloudPolicyStoreAshTest,
+       CheckDMTokenBlocksRecoveryOnMissingDeviceId) {
+  // Test that recovery is blocked when device ID is missing on M122+ devices
+  TestingBrowserProcess::GetGlobal()->SetLocalState(local_state());
+  local_state()->SetString(prefs::kEnrollmentVersionOS, "122.0.0");
+  local_state()->ClearPref(prefs::kEnrollmentRecoveryRequired);
+  
+  // Create a new install attributes without device ID
+  store_->RemoveObserver(&observer_);
+  store_.reset();
+  
+  ash::install_attributes_util::InstallAttributesSet(
+      "enterprise.owned", "true");
+  ash::install_attributes_util::InstallAttributesSet(
+      "enterprise.domain", PolicyBuilder::kFakeDomain);
+  // Deliberately omit device ID to simulate tampering
+  
+  install_attributes_ = std::make_unique<ash::InstallAttributes>(
+      ash::InstallAttributesClient::Get());
+  store_ = std::make_unique<DeviceCloudPolicyStoreAsh>(
+      device_settings_service_.get(), install_attributes_.get(),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
+  store_->AddObserver(&observer_);
+  
+  // Remove DM token to trigger the check
+  device_policy_->policy_data().clear_request_token();
+  device_policy_->Build();
+  
+  store_->Load();
+  FlushDeviceSettings();
+  
+  // Recovery should be blocked due to missing device ID
+  EXPECT_FALSE(
+      local_state()->GetBoolean(prefs::kEnrollmentRecoveryRequired));
+  
+  TestingBrowserProcess::GetGlobal()->SetLocalState(nullptr);
+}
+
+TEST_F(DeviceCloudPolicyStoreAshTest, CheckDMTokenWithValidToken) {
+  // Test that no recovery is triggered when DM token is present
+  TestingBrowserProcess::GetGlobal()->SetLocalState(local_state());
+  local_state()->SetString(prefs::kEnrollmentVersionOS, "122.0.0");
+  local_state()->ClearPref(prefs::kEnrollmentRecoveryRequired);
+  
+  // Device policy has valid DM token (default state)
+  store_->Load();
+  FlushDeviceSettings();
+  
+  // No recovery should be triggered - everything is fine
+  EXPECT_FALSE(
+      local_state()->GetBoolean(prefs::kEnrollmentRecoveryRequired));
+  
+  TestingBrowserProcess::GetGlobal()->SetLocalState(nullptr);
+}
+
 }  // namespace policy
