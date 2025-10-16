@@ -47,37 +47,33 @@ Use this guide to quickly test if your Chromebooks are vulnerable to unauthorize
 
 ### Immediate Actions (< 1 hour):
 
-```
-☑️ 1. Enable Forced Re-enrollment
+**1. Enable Forced Re-enrollment**
    - Google Admin Console → Devices → Chrome
    - Device Settings → Enrollment & Access
    - ✓ Force device to re-enroll on powerwash
 
-☑️ 2. Block Developer Mode
+**2. Block Developer Mode**
    - Device Settings → System Settings
    - ✓ Block developer mode (DeviceBlockDevmode)
 
-☑️ 3. Set Up Alerts
+**3. Set Up Alerts**
    - Google Admin Console → Reports → Alerts
    - ✓ Alert on device unenrollment
    - ✓ Alert on policy fetch failures
-```
 
 ### Short-term Actions (< 1 week):
 
-```
-☑️ 4. Update Chrome OS
+**4. Update Chrome OS**
    - Schedule update to latest version
    - Priority: Devices physically with students
 
-☑️ 5. Audit Current Devices
+**5. Audit Current Devices**
    - Check for unexpectedly unenrolled devices
    - Investigate recent enrollment status changes
 
-☑️ 6. Physical Security
+**6. Physical Security**
    - Consider asset tags
    - Implement check-in/check-out procedures
-```
 
 ---
 
@@ -123,12 +119,11 @@ crossystem                # Check firmware settings
 ```
 
 ### Admin Console Quick Links:
-```
-Devices → Chrome → Devices               # All devices
-Reports → Device Info                    # Device details
-Reports → Alerts                         # Set up alerts
-Settings → Device Settings               # Configure policies
-```
+
+- **Devices → Chrome → Devices** - All devices
+- **Reports → Device Info** - Device details
+- **Reports → Alerts** - Set up alerts
+- **Settings → Device Settings** - Configure policies
 
 ---
 

@@ -41,24 +41,22 @@ This fix adds multi-layer validation to ensure enrollment recovery is only trigg
 ### 2. Testing on Your Devices
 
 #### Test A: Latest Version (5 minutes)
-```bash
+
 1. Enroll a test Chromebook with the latest Chrome OS
 2. Verify it appears in Google Admin Console
 3. Have a technical user attempt to enter developer mode
 4. Expected: Developer mode is blocked, device stays enrolled
-```
 
 #### Test B: Lower Versions (15 minutes)
+
 For devices on older Chrome OS versions:
 
-```bash
 1. Identify test device on older Chrome OS version
 2. Enter recovery mode: Esc + Refresh + Power
 3. Insert recovery USB and complete recovery
 4. After recovery, check enrollment status
 5. If device can skip enrollment: VULNERABLE ⚠️
 6. If device forces re-enrollment: PROTECTED ✅
-```
 
 **If vulnerable devices are found:**
 - Enable "Forced re-enrollment" in Admin Console immediately
@@ -193,7 +191,18 @@ Any of these log entries indicate a potential tampering attempt.
 - Devices with policy fetch errors followed by unenrollment
 
 ### Q: What Chrome OS version includes this fix?
-**A:** The fix is being integrated into Chrome OS. Check the version notes or contact Chrome Enterprise support for specific version information.
+**A:** This security fix is targeted for inclusion in Chrome OS M127 and later. The fix will be backported to older stable versions through Chrome OS's security update process. 
+
+To verify if your devices have the fix:
+1. Check Chrome OS version: Settings → About Chrome OS
+2. Version M127+ includes this fix by default
+3. Older versions may receive the fix through security updates
+4. Contact Chrome Enterprise support for specific version information for your fleet
+
+For the most current information, check:
+- Chrome OS release notes: https://support.google.com/chrome/a/answer/7679408
+- Chrome Enterprise release schedule
+- Contact your Chrome Enterprise support team
 
 ### Q: Can students still powerwash devices?
 **A:** Students can still powerwash, but:
