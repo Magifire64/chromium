@@ -69,6 +69,8 @@ This guide helps system administrators test whether their ChromeOS devices on ol
 2. **Create high system load**:
    ```bash
    # In developer shell
+   # Note: The 'stress' tool may need to be installed first
+   # Alternative: Open multiple chrome tabs and applications to create load
    stress --cpu 4 --io 4 --vm 2 --vm-bytes 128M --timeout 60s &
    ```
 3. **Immediately reboot** during the stress test
@@ -167,39 +169,58 @@ echo "✅ No recovery flag after policy updates"
 
 # 7. Reboot test
 echo "Reboot test - will reboot in 10 seconds"
-echo "After reboot, check if device shows enrollment screen"
+echo "After reboot, manually check if device shows enrollment screen"
+echo "If it goes to login screen (not enrollment), test PASSED"
+echo "If it shows enrollment screen, BUG DETECTED"
 sleep 10
+# Note: After reboot, you'll need to check manually
 sudo reboot
 ```
 
 ### Test 2: Multi-Reboot Stress Test
 
+**Note**: This test requires manual intervention after each reboot or setting up as a startup service.
+
 ```bash
 #!/bin/bash
 # Run this script on multiple test devices
+# After each reboot, manually re-run the script or set it up as a startup service
+
+LOG_FILE="/tmp/enrollment_bug_test.log"
+STATE_FILE="/tmp/reboot_test_state"
+
+# Initialize or read state
+if [ -f "$STATE_FILE" ]; then
+  CURRENT_REBOOT=$(cat $STATE_FILE)
+else
+  CURRENT_REBOOT=0
+fi
 
 REBOOT_COUNT=10
-LOG_FILE="/tmp/enrollment_bug_test.log"
+NEXT_REBOOT=$((CURRENT_REBOOT + 1))
 
-echo "=== Multi-Reboot Stress Test ===" | tee $LOG_FILE
-echo "Testing $REBOOT_COUNT reboots" | tee -a $LOG_FILE
+echo "=== Multi-Reboot Stress Test ===" | tee -a $LOG_FILE
+echo "Reboot $NEXT_REBOOT of $REBOOT_COUNT" | tee -a $LOG_FILE
 
-for i in $(seq 1 $REBOOT_COUNT); do
-  echo "Reboot $i of $REBOOT_COUNT" | tee -a $LOG_FILE
-  
-  # Check recovery flag before reboot
-  BEFORE=$(cat /home/chronos/Local\ State 2>/dev/null | grep -o '"EnrollmentRecoveryRequired":true')
-  echo "Before reboot: Recovery flag = ${BEFORE:-false}" | tee -a $LOG_FILE
-  
-  # Record timestamp
-  date | tee -a $LOG_FILE
-  
-  # Reboot
+# Check recovery flag
+RECOVERY=$(cat /home/chronos/Local\ State 2>/dev/null | grep -o '"EnrollmentRecoveryRequired":true')
+echo "Recovery flag = ${RECOVERY:-false}" | tee -a $LOG_FILE
+
+# Record timestamp
+date | tee -a $LOG_FILE
+
+# Update state for next run
+echo $NEXT_REBOOT > $STATE_FILE
+
+if [ $NEXT_REBOOT -lt $REBOOT_COUNT ]; then
+  echo "Rebooting in 5 seconds..." | tee -a $LOG_FILE
+  echo "Re-run this script after reboot to continue testing" | tee -a $LOG_FILE
+  sleep 5
   sudo reboot
-  
-  # Note: This script needs to be re-run after each reboot
-  # Or set up as a startup script to continue testing
-done
+else
+  echo "Test complete after $REBOOT_COUNT reboots" | tee -a $LOG_FILE
+  rm -f $STATE_FILE
+fi
 ```
 
 ### Test 3: Log Analysis Script

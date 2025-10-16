@@ -40,7 +40,7 @@ When any of these occurred, the device would be marked for enrollment recovery e
 
 **File Modified**: `chrome/browser/ash/policy/core/device_cloud_policy_store_ash.cc`
 
-**Lines Changed**: 2 (removed line 290, added at line 293)
+**Lines Changed**: 2 (one line removed from early in function, one line added inside success condition)
 
 ### Before (Buggy Code)
 ```cpp
@@ -261,5 +261,5 @@ For issues or questions:
 
 ## Revision History
 
-- **2025-10-16**: Initial fix and documentation
+- **Initial version**: Fix and documentation created
 - **Status**: Fixed in commit 6281a7c7be
