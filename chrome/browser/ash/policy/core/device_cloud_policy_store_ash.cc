@@ -330,10 +330,67 @@ void DeviceCloudPolicyStoreAsh::CheckDMToken() {
              << "no DM token! Status: " << service_status
              << ", debug_info: " << debug_info.str() << ".";
 
+  // SECURITY FIX: Add additional validation before allowing enrollment recovery.
+  // Only trigger enrollment recovery if the device lock state is still intact,
+  // which indicates a legitimate system issue rather than deliberate tampering.
+  // This prevents malicious users from forcing unenrollment by deleting policy
+  // files.
+  
+  // Verify that install attributes are properly locked. If they're not locked,
+  // this may indicate tampering and we should not allow recovery.
+  if (!install_attributes_->IsDeviceLocked()) {
+    LOG(ERROR) << "Enrollment recovery blocked: Install attributes not locked. "
+               << "This may indicate device tampering.";
+    // Record metric for security monitoring.
+    base::UmaHistogramBoolean("Enterprise.EnrollmentRecovery.Blocked", true);
+    return;
+  }
+
+  // Verify the device is actually in an enrolled state (not consumer mode).
+  // This prevents triggering recovery on devices that were never properly
+  // enrolled.
+  if (!install_attributes_->IsCloudManaged()) {
+    LOG(ERROR) << "Enrollment recovery blocked: Device is not cloud managed.";
+    base::UmaHistogramBoolean("Enterprise.EnrollmentRecovery.Blocked", true);
+    return;
+  }
+
+  // Additional check: Ensure we have a valid domain in install attributes.
+  // If the domain is missing, this strongly suggests tampering.
+  const std::string enrolled_domain = install_attributes_->GetDomain();
+  if (enrolled_domain.empty()) {
+    LOG(ERROR) << "Enrollment recovery blocked: No enrolled domain found. "
+               << "This may indicate device tampering.";
+    base::UmaHistogramBoolean("Enterprise.EnrollmentRecovery.Blocked", true);
+    return;
+  }
+
+  // Additional check: If device has enrolled version information, validate it.
+  // Devices enrolled on M122+ should have version info, and missing info could
+  // indicate tampering.
+  if (CanUseDeviceIdValidation()) {
+    const std::string enrolled_device_id = install_attributes_->GetDeviceId();
+    
+    // Verify we have a device ID. Missing device ID on newer enrolled devices
+    // could indicate tampering.
+    if (enrolled_device_id.empty()) {
+      LOG(ERROR) << "Enrollment recovery blocked: No device ID found on "
+                 << "enrolled device. This may indicate device tampering.";
+      base::UmaHistogramBoolean("Enterprise.EnrollmentRecovery.Blocked", true);
+      return;
+    }
+  }
+
+  // Log the enrollment recovery trigger for audit purposes.
+  LOG(WARNING) << "Triggering enrollment recovery for legitimately enrolled "
+               << "device. Domain: " << enrolled_domain
+               << ", Device ID: " << install_attributes_->GetDeviceId();
+
   // At the time LoginDisplayHostWebUI decides whether enrollment flow is to
   // be started, policy hasn't been read yet.  To work around this, once the
   // need for recovery is detected upon policy load, a flag is stored in prefs
   // which is accessed by LoginDisplayHostWebUI early during (next) boot.
+  base::UmaHistogramBoolean("Enterprise.EnrollmentRecovery.Triggered", true);
   ash::StartupUtils::MarkEnrollmentRecoveryRequired();
 }
 
