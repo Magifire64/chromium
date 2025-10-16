@@ -287,10 +287,10 @@ void DeviceCloudPolicyStoreAsh::CheckDMToken() {
   if (dm_token_checked_) {
     return;
   }
-  dm_token_checked_ = true;
 
   const em::PolicyData* policy_data = device_settings_service_->policy_data();
   if (policy_data && policy_data->has_request_token()) {
+    dm_token_checked_ = true;
     base::UmaHistogramBoolean(kDMTokenCheckHistogram, true);
     base::UmaHistogramBoolean(kPolicyCheckHistogram, true);
     return;
